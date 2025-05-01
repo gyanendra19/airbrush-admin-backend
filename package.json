@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon ./src/index.js",
-    "build": "npm install && tsc"
+    "build": "npm install",
+    "start": "node ./src/index.js"
   },
   "author": "Gyanendra",
   "license": "ISC",
