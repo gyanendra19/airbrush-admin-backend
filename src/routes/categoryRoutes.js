@@ -5,7 +5,8 @@ import {
   getCategoryBySlug,
   createCategory,
   updateCategory,
-  deleteCategory
+  deleteCategory,
+  deleteAllCategories
 } from '../controllers/categoryController.js';
 import { verifyToken, adminOnly } from '../middlewares/authMiddleware.js';
 
@@ -21,5 +22,6 @@ router.get('/parent/:parentSlug/slug/:slug', getCategoryBySlug);
 router.post('/', createCategory);
 router.put('/:id', updateCategory);
 router.delete('/:id', deleteCategory);
+router.delete('/', deleteAllCategories);
 
 export default router;

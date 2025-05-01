@@ -80,10 +80,6 @@ export const getContentBySection = async (req, res) => {
             path: 'category',
             select: 'name slug'
           },
-          {
-            path: 'parent',
-            select: 'name slug'
-          }
         ]
       });
       
@@ -109,10 +105,15 @@ export const createContent = async (req, res) => {
   try {
     const { section, title, subtitle, slug, images, fields } = req.body;
     
-    // Check if section exists
+    // Check if section exists and populate its category
     const sectionExists = await Section.findById(section).populate('category');
     if (!sectionExists) {
       return res.status(404).json({ message: 'Section not found' });
+    }
+    
+    // Ensure section has a category
+    if (!sectionExists.category) {
+      return res.status(400).json({ message: 'Section must belong to a category' });
     }
     
     // Check if section is a folder
@@ -126,32 +127,30 @@ export const createContent = async (req, res) => {
       return res.status(400).json({ message: 'Content already exists for this section. Use update instead.' });
     }
     
-    // Generate slug if not provided but title exists
-    let contentSlug = slug;
-    if (!contentSlug && title) {
-      contentSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    // Check for slug uniqueness within the category
+    if (!slug) {
+      return res.status(400).json({ message: 'Slug is required for content' });
     }
+
+    // Find all sections in the same category
+    const sectionsInCategory = await Section.find({ category: sectionExists.category._id });
+    const sectionIds = sectionsInCategory.map(s => s._id);
     
-    // Check for slug uniqueness within the category if slug is provided
-    if (contentSlug) {
-      // Find all sections in the same category
-      const sectionsInCategory = await Section.find({ category: sectionExists.category._id });
-      const sectionIds = sectionsInCategory.map(s => s._id);
-      
-      // Check if any content in the same category has this slug
-      const slugExists = await Content.findOne({
-        section: { $in: sectionIds },
-        slug: contentSlug
+    // Check if any content in the same category has this slug
+    const slugExists = await Content.findOne({
+      section: { $in: sectionIds },
+      slug: slug
+    });
+    
+    if (slugExists) {
+      return res.status(400).json({ 
+        message: `Content with slug '${slug}' already exists in category '${sectionExists.category.name}'. Please provide a unique slug.` 
       });
-      
-      if (slugExists) {
-        return res.status(400).json({ message: 'Content with this slug already exists in this category. Please provide a unique slug.' });
-      }
     }
     
     const newContent = new Content({
       section,
-      slug: contentSlug,
+      slug,
       title: title || '',
       subtitle: subtitle || '',
       images: images || [],
@@ -184,7 +183,7 @@ export const updateContent = async (req, res) => {
   try {
     const { title, subtitle, slug, images, fields, isActive } = req.body;
     
-    // Get current content
+    // Get current content and populate section with category
     const currentContent = await Content.findById(req.params.id).populate({
       path: 'section',
       populate: {
@@ -194,6 +193,11 @@ export const updateContent = async (req, res) => {
     
     if (!currentContent) {
       return res.status(404).json({ message: 'Content not found' });
+    }
+
+    // Ensure section has a category
+    if (!currentContent.section.category) {
+      return res.status(400).json({ message: 'Section must belong to a category' });
     }
     
     // Check for slug uniqueness within the category if it's being changed
@@ -206,11 +210,13 @@ export const updateContent = async (req, res) => {
       const slugExists = await Content.findOne({
         _id: { $ne: req.params.id }, // Exclude current content
         section: { $in: sectionIds },
-        slug
+        slug: slug
       });
       
       if (slugExists) {
-        return res.status(400).json({ message: 'Content with this slug already exists in this category. Please provide a unique slug.' });
+        return res.status(400).json({ 
+          message: `Content with slug '${slug}' already exists in category '${currentContent.section.category.name}'. Please provide a unique slug.` 
+        });
       }
     }
     
@@ -222,11 +228,6 @@ export const updateContent = async (req, res) => {
     if (images !== undefined) updateData.images = images;
     if (fields !== undefined) updateData.fields = fields;
     if (isActive !== undefined) updateData.isActive = isActive;
-    
-    // If title is changing but slug is not provided, update slug
-    if (title && title !== currentContent.title && slug === undefined) {
-      updateData.slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    }
     
     const updatedContent = await Content.findByIdAndUpdate(
       req.params.id,
@@ -347,6 +348,20 @@ export const getContentBySlug = async (req, res) => {
     }
     
     res.status(200).json(content);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete all content
+export const deleteAllContent = async (req, res) => {
+  try {
+    const result = await Content.deleteMany({});
+    
+    res.status(200).json({
+      message: "All content deleted successfully",
+      deletedCount: result.deletedCount
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

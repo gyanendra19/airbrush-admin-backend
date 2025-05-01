@@ -21,9 +21,12 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'airbrush-images',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'gif'],
-    format: 'jpg',
+    folder: 'airbrush-media',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'mp4'],
+    format: async (req, file) => {
+      if (file.mimetype.includes('video')) return 'mp4';
+      return 'jpg';
+    },
     resource_type: 'auto'
   }
 });

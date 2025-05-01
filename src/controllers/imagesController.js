@@ -1,5 +1,3 @@
-
-
 export const uploadImages = async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
@@ -12,7 +10,8 @@ export const uploadImages = async (req, res) => {
       publicId: file.filename, // The public ID of the file in Cloudinary
       originalName: file.originalname,
       size: file.size,
-      mimetype: file.mimetype
+      mimetype: file.mimetype,
+      fileType: file.mimetype.includes('video') ? 'video' : 'image'
     }));
 
     res.status(200).json({

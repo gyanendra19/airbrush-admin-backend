@@ -278,4 +278,30 @@ export const deleteSection = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
+
+// Delete all sections
+export const deleteAllSections = async (req, res) => {
+  try {
+    // First check if there are any sections with children
+    const sectionsWithChildren = await Section.find({
+      parent: { $ne: null }
+    });
+
+    if (sectionsWithChildren.length > 0) {
+      return res.status(400).json({
+        message: "Cannot delete all sections while there are subsections. Delete subsections first.",
+        subsectionCount: sectionsWithChildren.length
+      });
+    }
+
+    const result = await Section.deleteMany({});
+    
+    res.status(200).json({
+      message: "All sections deleted successfully",
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 }; 

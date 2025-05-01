@@ -7,7 +7,8 @@ import {
   getContentBySlug,
   createContent,
   updateContent,
-  deleteContent
+  deleteContent,
+  deleteAllContent
 } from '../controllers/contentController.js';
 import { verifyToken, adminOnly } from '../middlewares/authMiddleware.js';
 
@@ -24,5 +25,6 @@ router.get('/category/:categoryId/slug/:slug', getContentBySlug);
 router.post('/', createContent);
 router.put('/:id', updateContent);
 router.delete('/:id', deleteContent);
+router.delete('/', deleteAllContent);
 
 export default router; 

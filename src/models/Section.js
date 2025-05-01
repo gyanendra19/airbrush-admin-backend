@@ -34,12 +34,4 @@ const SectionSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Generate slug from name before saving
-SectionSchema.pre('save', function(next) {
-  if (this.isModified('name')) {
-    this.slug = this.name.toLowerCase().replace(/\s+/g, '-');
-  }
-  next();
-});
-
 export default mongoose.model('Section', SectionSchema); 

@@ -5,7 +5,8 @@ import {
   getSectionBySlug,
   createSection,
   updateSection,
-  deleteSection
+  deleteSection,
+  deleteAllSections
 } from '../controllers/sectionController.js';
 import { verifyToken, adminOnly } from '../middlewares/authMiddleware.js';
 
@@ -21,5 +22,6 @@ router.get('/category/:categorySlug/parent/:parentSlug/section/:sectionSlug', ge
 router.post('/', createSection);
 router.put('/:id', updateSection);
 router.delete('/:id', deleteSection);
+router.delete('/', deleteAllSections);
 
 export default router; 
