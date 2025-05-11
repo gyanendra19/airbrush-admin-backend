@@ -8,8 +8,7 @@ import authRoutes from './routes/authRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import sectionRoutes from './routes/sectionRoutes.js';
 import contentRoutes from './routes/contentRoutes.js';
-import imagesRoutes from './routes/imagesRoute.js';
-
+import imagesRoute from './routes/imagesRoute.js';
 // Configure environment variables
 dotenv.config();
 
@@ -34,7 +33,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/sections', sectionRoutes);
 app.use('/api/content', contentRoutes);
-app.use('/api/images', imagesRoutes);
+app.use('/api/images', imagesRoute);
 
 
 const PORT = process.env.PORT || 3009;

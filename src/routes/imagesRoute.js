@@ -1,5 +1,5 @@
 import express from 'express';
-import { uploadImages } from '../controllers/imagesController.js';
+import { uploadImages, generatePrompt, generateImage } from '../controllers/imagesController.js';
 import { verifyToken, adminOnly } from '../middlewares/authMiddleware.js';
 import multer from 'multer';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
@@ -33,5 +33,7 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage: storage });
 router.post('/', upload.array('images', 10), uploadImages);
+router.post('/generate-prompt', generatePrompt);
+router.post('/generate-image', generateImage);
 
 export default router; 
