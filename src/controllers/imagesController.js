@@ -1,3 +1,7 @@
+import dotenv from 'dotenv';
+
+dotenv.config();
+
 export const uploadImages = async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
@@ -33,7 +37,7 @@ export const generatePrompt = async (req, res) => {
       return res.status(400).json({ message: 'Category name is required' });
     }
 
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyDYGuO7Q2LSPUIyuKzlQKLMvj_5ltr6hAU', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -76,7 +80,7 @@ export const generateImage = async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ofZxkV2E7aTDvbirZCB16zJHSbbfOxdN'
+        'Authorization': `Bearer ${process.env.DEEPINFRA_API_KEY}`
       },
       body: JSON.stringify({
         prompt: prompt.split('**Prompt:**')[1]?.trim() || prompt,
