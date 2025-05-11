@@ -31,10 +31,17 @@ export const uploadImages = async (req, res) => {
 
 export const generatePrompt = async (req, res) => {
   try {
-    const { categoryName } = req.body;
+    const { categoryName, type } = req.body;
 
     if (!categoryName) {
       return res.status(400).json({ message: 'Category name is required' });
+    }
+    
+    let text
+    if(type === 'prompt'){
+      text = `create a unique and professional single prompt of 15-20 words that will generate a beautiful image for ${categoryName}`
+    }else{
+      text = `create a unique blog content of 350-400 words related to the topic ${categoryName}`
     }
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
@@ -45,7 +52,7 @@ export const generatePrompt = async (req, res) => {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `create a unique and professional single prompt of 15-20 words that will generate a beautiful image for ${categoryName}`
+            text
           }]
         }]
       })
