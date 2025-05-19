@@ -32,6 +32,7 @@ const CategorySchema = new mongoose.Schema(
     },
     metaTags: {
       type: String,
+      required: true,
     },  
     image: {
       type: String,
