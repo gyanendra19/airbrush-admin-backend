@@ -88,8 +88,6 @@ export const getCategoryBySlug = async (req, res) => {
 export const createCategory = async (req, res) => {
   try {
     const { name, slug, description, image, parent, isFolder } = req.body;
-    console.log(slug);
-    
     
     // Check if parent exists if provided
     if (parent) {
@@ -119,6 +117,12 @@ export const createCategory = async (req, res) => {
             "Category with this name or slug already exists at this level",
         });
     }
+    
+    // Find any existing category with recent=true and set it to false
+    const existingRecent = await Category.findOne({ recent: true });
+    if (existingRecent) {
+      await Category.findByIdAndUpdate(existingRecent._id, { recent: false });
+    }
 
     const newCategory = new Category({
       name,
@@ -127,11 +131,10 @@ export const createCategory = async (req, res) => {
       image,
       parent: parent || null,
       isFolder: isFolder !== undefined ? isFolder : true,
+      recent: true, // Always set recent to true for new categories
     });
     
-    
     const savedCategory = await newCategory.save();
-    console.log(savedCategory);
     res.status(201).json(savedCategory);
   } catch (error) {
     res.status(500).json({ message: error.message });

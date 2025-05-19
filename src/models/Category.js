@@ -30,6 +30,9 @@ const CategorySchema = new mongoose.Schema(
       default: false,
       type: Boolean,
     },
+    metaTags: {
+      type: String,
+    },  
     image: {
       type: String,
       required: true,
