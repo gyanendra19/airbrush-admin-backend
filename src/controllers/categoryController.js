@@ -87,7 +87,7 @@ export const getCategoryBySlug = async (req, res) => {
 // Create new category
 export const createCategory = async (req, res) => {
   try {
-    const { name, slug, description, image, parent, isFolder } = req.body;
+    const { name, slug, description, image, parent, isFolder, metaTags } = req.body;
     
     // Check if parent exists if provided
     if (parent) {
@@ -130,6 +130,7 @@ export const createCategory = async (req, res) => {
       description,
       image,
       parent: parent || null,
+      metaTags,
       isFolder: isFolder !== undefined ? isFolder : true,
       recent: true, // Always set recent to true for new categories
     });
