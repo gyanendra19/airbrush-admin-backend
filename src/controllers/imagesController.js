@@ -112,6 +112,38 @@ of JPG images to HEIC. Mobile-friendly, bulk supported, no login needed.",
 }} 
 </script>`
 
+// Helper function to wait
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper function to fetch with retry
+async function fetchWithRetry(url, maxRetries = 3, initialDelay = 1000) {
+  let lastError;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(url, {
+        timeout: 15000 // 15 seconds timeout
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return response;
+    } catch (error) {
+      console.log(`Attempt ${i + 1} failed: ${error.message}`);
+      lastError = error;
+      
+      if (i < maxRetries - 1) {
+        // Wait before retrying, with exponential backoff
+        await delay(initialDelay * Math.pow(2, i));
+      }
+    }
+  }
+  
+  throw new Error(`Failed after ${maxRetries} attempts. Last error: ${lastError.message}`);
+}
+
 export const uploadImages = async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
@@ -213,22 +245,46 @@ export const generateImage = async (req, res) => {
       aspect_ratio: "1:1"  // You can make this configurable through req.body if needed
     };
 
-    const output = await replicate.run("ideogram-ai/ideogram-v3-balanced", { input });
-    console.log("Output:", output);
+    let output;
+    try {
+      output = await replicate.run("ideogram-ai/ideogram-v3-balanced", { input });
+      console.log("Output URL:", output);
+      
+      if (!output) {
+        throw new Error("No output received from Replicate");
+      }
+    } catch (error) {
+      console.error("Replicate API error:", error);
+      return res.status(500).json({
+        message: "Error generating image with Replicate",
+        error: error.message
+      });
+    }
 
-    // Convert stream to base64 string
-    const response = await fetch(output);
-    const arrayBuffer = await response.arrayBuffer();
-    const base64String = Buffer.from(arrayBuffer).toString('base64');
+    try {
+      // Attempt to fetch the image with retry logic
+      const response = await fetchWithRetry(output);
+      const arrayBuffer = await response.arrayBuffer();
+      const base64String = Buffer.from(arrayBuffer).toString('base64');
 
-    res.status(200).json({
-      message: "Image generated successfully",
-      imageData: `data:image/png;base64,${base64String}` // Base64 data URL that can be used for Cloudinary upload
-    });
+      res.status(200).json({
+        message: "Image generated successfully",
+        imageData: `data:image/png;base64,${base64String}`
+      });
+    } catch (error) {
+      console.error("Error fetching generated image:", error);
+      // If we at least have the output URL, return it
+      res.status(500).json({
+        message: "Error processing generated image",
+        error: error.message,
+        imageUrl: output // Return the URL in case frontend wants to try fetching directly
+      });
+    }
   } catch (error) {
     console.error("Image generation error:", error);
-    res
-      .status(500)
-      .json({ message: "Error generating image", error: error.message });
+    res.status(500).json({
+      message: "Error generating image",
+      error: error.message
+    });
   }
 };
