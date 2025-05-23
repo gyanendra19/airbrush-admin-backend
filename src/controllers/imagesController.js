@@ -1,5 +1,11 @@
 import dotenv from "dotenv";
 import Replicate from "replicate";
+import fs from "fs/promises";
+import { createWriteStream } from "fs";
+import path from "path";
+import fetch from "node-fetch";
+import { Readable } from 'stream';
+import { finished } from 'stream/promises';
 
 dotenv.config();
 
@@ -11,6 +17,10 @@ if (!process.env.REPLICATE_API_KEY) {
 const replicate = new Replicate({
   auth: process.env.REPLICATE_API_KEY,
 });
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(process.cwd(), "uploads");
+fs.mkdir(uploadsDir, { recursive: true }).catch(console.error);
 
 const metaExample = `<meta charset="UTF-8" /> 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, 
@@ -204,10 +214,16 @@ export const generateImage = async (req, res) => {
     };
 
     const output = await replicate.run("ideogram-ai/ideogram-v3-balanced", { input });
+    console.log("Output:", output);
+
+    // Convert stream to base64 string
+    const response = await fetch(output);
+    const arrayBuffer = await response.arrayBuffer();
+    const base64String = Buffer.from(arrayBuffer).toString('base64');
 
     res.status(200).json({
       message: "Image generated successfully",
-      imageUrl: output[0]  // Replicate returns array of image URLs
+      imageData: `data:image/png;base64,${base64String}` // Base64 data URL that can be used for Cloudinary upload
     });
   } catch (error) {
     console.error("Image generation error:", error);
