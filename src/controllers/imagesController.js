@@ -1,6 +1,16 @@
 import dotenv from "dotenv";
+import Replicate from "replicate";
 
 dotenv.config();
+
+// Add a check for the API key
+if (!process.env.REPLICATE_API_KEY) {
+  throw new Error("REPLICATE_API_KEY is not set in environment variables");
+}
+
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_KEY,
+});
 
 const metaExample = `<meta charset="UTF-8" /> 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, 
@@ -185,34 +195,19 @@ export const generateImage = async (req, res) => {
       return res.status(400).json({ message: "Prompt is required" });
     }
 
-    const imageResponse = await fetch(
-      "https://api.deepinfra.com/v1/openai/images/generations",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.DEEPINFRA_API_KEY}`,
-        },
-        body: JSON.stringify({
-          prompt: prompt.split("**Prompt:**")[1]?.trim() || prompt,
-          size: "1024x1024",
-          model: "black-forest-labs/FLUX-1-dev",
-          n: 1,
-          response_format: "b64_json",
-        }),
-      }
-    );
+    // Clean the prompt if it contains the "**Prompt:**" prefix
+    const cleanedPrompt = prompt.split("**Prompt:**")[1]?.trim() || prompt;
 
-    if (!imageResponse.ok) {
-      throw new Error("Image generation failed");
-    }
+    const input = {
+      prompt: cleanedPrompt,
+      aspect_ratio: "1:1"  // You can make this configurable through req.body if needed
+    };
 
-    const imageData = await imageResponse.json();
+    const output = await replicate.run("ideogram-ai/ideogram-v3-balanced", { input });
 
-    // Return the base64 data directly
     res.status(200).json({
       message: "Image generated successfully",
-      imageData: imageData.data[0].b64_json,
+      imageUrl: output[0]  // Replicate returns array of image URLs
     });
   } catch (error) {
     console.error("Image generation error:", error);
