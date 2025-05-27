@@ -186,6 +186,8 @@ export const generatePrompt = async (req, res) => {
       text = `create a unique and professional single prompt of 15-20 words that will generate a beautiful image for ${categoryName}`;
     } else if (type === "meta") {
       text = `Rewrite the following meta tags using the category name ${categoryName}. Replace all instances of the original category name (e.g., "JPG to HEIC") with ${categoryName}. Do not add, remove, or modify any content other than replacing the category name. Use the exact structure and wording of the original tags. Meta tags: ${metaExample}`;
+    } else if (type === "short_content") {
+      text = `create a unique and professional short content of 70-100 words for ${categoryName}`;
     } else {
       text = `create a unique blog content of 350-400 words related to the topic ${categoryName}`;
     }
