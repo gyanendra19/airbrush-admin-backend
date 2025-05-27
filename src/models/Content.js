@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
-// Define a schema for the content fields
-const ContentFieldSchema = new mongoose.Schema(
+// Define a schema for the content field values
+const ContentFieldValueSchema = new mongoose.Schema(
   {
     type: {
       type: String,
@@ -11,6 +11,9 @@ const ContentFieldSchema = new mongoose.Schema(
       trim: true,
     },
     url: {
+      type: String,
+    },
+    title: {
       type: String,
     },
     lead: {
@@ -23,6 +26,13 @@ const ContentFieldSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+  },
+  { _id: false }  // Disable _id for the nested schema
+);
+
+const ContentFieldSchema = new mongoose.Schema(
+  {
+    value: ContentFieldValueSchema
   },
   { _id: true }
 );
@@ -58,7 +68,7 @@ const ContentSchema = new mongoose.Schema(
         order: Number,
       },
     ],
-    fields: [ContentFieldSchema], 
+    fields: [ContentFieldSchema],
     isActive: {
       type: Boolean,
       default: true,
@@ -66,6 +76,5 @@ const ContentSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
 
 export default mongoose.model("Content", ContentSchema);
