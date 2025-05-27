@@ -13,9 +13,6 @@ const ContentFieldSchema = new mongoose.Schema(
     url: {
       type: String,
     },
-    title: {
-      type: String,
-    },
     lead: {
       type: Boolean,
     },
@@ -61,7 +58,7 @@ const ContentSchema = new mongoose.Schema(
         order: Number,
       },
     ],
-    fields: [ContentFieldSchema],
+    fields: [ContentFieldSchema], 
     isActive: {
       type: Boolean,
       default: true,
