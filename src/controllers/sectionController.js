@@ -304,4 +304,33 @@ export const deleteAllSections = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
+
+// Get sections by category ID
+export const getSectionsByCategoryId = async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+    
+    // Check if category exists
+    const categoryExists = await Category.findById(categoryId);
+    if (!categoryExists) {
+      return res.status(404).json({ message: 'Category not found' });
+    }
+
+    // Get all sections in the category
+    const sections = await Section.find({ category: categoryId })
+      .populate('category', 'name slug')
+      .sort({ order: 1, name: 1 });
+    
+    res.status(200).json({
+      category: {
+        _id: categoryExists._id,
+        name: categoryExists.name,
+        slug: categoryExists.slug
+      },
+      sections
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 }; 
