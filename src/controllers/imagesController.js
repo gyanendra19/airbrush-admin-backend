@@ -6,6 +6,7 @@ import path from "path";
 import fetch from "node-fetch";
 import { Readable } from 'stream';
 import { finished } from 'stream/promises';
+import sharp from 'sharp';
 
 dotenv.config();
 
@@ -233,7 +234,7 @@ export const generatePrompt = async (req, res) => {
 
 export const generateImage = async (req, res) => {
   try {
-    const { prompt } = req.body;
+    const { prompt, width = 512, height = 512, format = 'png' } = req.body;
 
     if (!prompt) {
       return res.status(400).json({ message: "Prompt is required" });
@@ -264,17 +265,34 @@ export const generateImage = async (req, res) => {
     }
 
     try {
-      // Attempt to fetch the image with retry logic
+      // Fetch the image with retry logic
       const response = await fetchWithRetry(output);
       const arrayBuffer = await response.arrayBuffer();
-      const base64String = Buffer.from(arrayBuffer).toString('base64');
+      const buffer = Buffer.from(arrayBuffer);
+
+      // Process the image with Sharp
+      const processedImageBuffer = await sharp(buffer)
+        .resize(width, height, {
+          fit: 'contain',
+          background: { r: 255, g: 255, b: 255, alpha: 0 }
+        })
+        .toFormat(format)
+        .toBuffer();
+
+      const base64String = processedImageBuffer.toString('base64');
+      const mimeType = `image/${format}`;
 
       res.status(200).json({
-        message: "Image generated successfully",
-        imageData: `data:image/png;base64,${base64String}`
+        message: "Image generated and processed successfully",
+        imageData: `data:${mimeType};base64,${base64String}`,
+        dimensions: {
+          width,
+          height
+        },
+        format
       });
     } catch (error) {
-      console.error("Error fetching generated image:", error);
+      console.error("Error processing generated image:", error);
       // If we at least have the output URL, return it
       res.status(500).json({
         message: "Error processing generated image",

@@ -9,6 +9,8 @@ import categoryRoutes from './routes/categoryRoutes.js';
 import sectionRoutes from './routes/sectionRoutes.js';
 import contentRoutes from './routes/contentRoutes.js';
 import imagesRoute from './routes/imagesRoute.js';
+import blogRoutes from './routes/blogRoutes.js';
+import generatorRoutes from './routes/generatorRoutes.js';
 // Configure environment variables
 dotenv.config();
 
@@ -34,7 +36,8 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/sections', sectionRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/images', imagesRoute);
-
+app.use('/api/blog', blogRoutes);
+app.use('/api/free-generators', generatorRoutes);
 
 const PORT = process.env.PORT || 3009;
 app.listen(PORT, () => {
