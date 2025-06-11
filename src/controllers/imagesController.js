@@ -314,6 +314,20 @@ export const generateImage = async (req, res) => {
       const originalSize = buffer.length;
       const compressedSize = processedImageBuffer.length;
       const compressionRatio = ((originalSize - compressedSize) / originalSize * 100).toFixed(2);
+      
+      // Log detailed compression information
+      console.log('\nImage Compression Details:');
+      console.log('------------------------');
+      console.log(`Format: ${format}`);
+      console.log(`Original Size: ${(originalSize / 1024).toFixed(2)} KB`);
+      console.log(`Compressed Size: ${(compressedSize / 1024).toFixed(2)} KB`);
+      console.log(`Compression Ratio: ${compressionRatio}%`);
+      console.log(`Space Saved: ${((originalSize - compressedSize) / 1024).toFixed(2)} KB`);
+      console.log(`Quality Setting: ${quality}`);
+      if (format.toLowerCase() === 'png') {
+        console.log(`PNG Compression Level: ${compression}`);
+      }
+      console.log('------------------------\n');
 
       const base64String = processedImageBuffer.toString('base64');
       const mimeType = `image/${format.toLowerCase()}`;
@@ -344,6 +358,98 @@ export const generateImage = async (req, res) => {
     console.error("Image generation error:", error);
     res.status(500).json({
       message: "Error generating image",
+      error: error.message
+    });
+  }
+};
+
+// Add test function for compression analysis
+export const testCompression = async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    const testConfigs = [
+      { format: 'webp', quality: 80 },  // Default
+      { format: 'webp', quality: 60 },  // More aggressive WebP
+      { format: 'jpeg', quality: 80 },  // Standard JPEG
+      { format: 'jpeg', quality: 60 },  // More aggressive JPEG
+      { format: 'png', compression: 6 }, // Standard PNG
+      { format: 'png', compression: 9 }, // Maximum PNG compression
+      { format: 'avif', quality: 80 },  // Standard AVIF
+      { format: 'avif', quality: 60 }   // More aggressive AVIF
+    ];
+
+    const results = [];
+
+    // Generate base image once
+    const input = {
+      prompt,
+      aspect_ratio: "1:1"
+    };
+
+    const output = await replicate.run("ideogram-ai/ideogram-v3-balanced", { input });
+    if (!output) {
+      throw new Error("No output received from Replicate");
+    }
+
+    // Fetch original image
+    const response = await fetchWithRetry(output);
+    const arrayBuffer = await response.arrayBuffer();
+    const originalBuffer = Buffer.from(arrayBuffer);
+    const originalSize = originalBuffer.length;
+
+    // Test each configuration
+    for (const config of testConfigs) {
+      let sharpInstance = sharp(originalBuffer);
+      
+      switch(config.format) {
+        case 'jpeg':
+        case 'jpg':
+          sharpInstance = sharpInstance.jpeg({ quality: config.quality });
+          break;
+        case 'webp':
+          sharpInstance = sharpInstance.webp({ 
+            quality: config.quality,
+            effort: 6,
+            lossless: false
+          });
+          break;
+        case 'avif':
+          sharpInstance = sharpInstance.avif({ 
+            quality: config.quality,
+            effort: 6
+          });
+          break;
+        case 'png':
+          sharpInstance = sharpInstance.png({ 
+            compressionLevel: config.compression,
+            effort: 10
+          });
+          break;
+      }
+
+      const processedBuffer = await sharpInstance.toBuffer();
+      const compressedSize = processedBuffer.length;
+      const compressionRatio = ((originalSize - compressedSize) / originalSize * 100).toFixed(2);
+
+      results.push({
+        format: config.format,
+        quality: config.quality,
+        compression: config.compression,
+        originalSize: (originalSize / 1024).toFixed(2) + ' KB',
+        compressedSize: (compressedSize / 1024).toFixed(2) + ' KB',
+        compressionRatio: compressionRatio + '%',
+        spaceSaved: ((originalSize - compressedSize) / 1024).toFixed(2) + ' KB'
+      });
+    }
+
+    res.status(200).json({
+      message: "Compression test completed",
+      results
+    });
+  } catch (error) {
+    console.error("Compression test error:", error);
+    res.status(500).json({
+      message: "Error running compression test",
       error: error.message
     });
   }
