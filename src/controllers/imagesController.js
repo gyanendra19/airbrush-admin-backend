@@ -255,7 +255,7 @@ export const generateImage = async (req, res) => {
 
     let output;
     try {
-      output = await replicate.run("ideogram-ai/ideogram-v3-balanced", { input });
+      output = await replicate.run("ideogram-ai/ideogram-v3-turbo", { input });
       console.log("Output URL:", output);
       
       if (!output) {
