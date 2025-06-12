@@ -4,6 +4,7 @@ import fs from "fs/promises";
 import { createWriteStream } from "fs";
 import path from "path";
 import fetch from "node-fetch";
+import sharp from "sharp";
 import { Readable } from 'stream';
 import { finished } from 'stream/promises';
 
