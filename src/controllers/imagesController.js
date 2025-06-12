@@ -6,7 +6,6 @@ import path from "path";
 import fetch from "node-fetch";
 import { Readable } from 'stream';
 import { finished } from 'stream/promises';
-import sharp from 'sharp';
 
 dotenv.config();
 
@@ -234,12 +233,7 @@ export const generatePrompt = async (req, res) => {
 
 export const generateImage = async (req, res) => {
   try {
-    const { 
-      prompt, 
-      format = 'webp', // webp provides better compression
-      quality = 80,    // 0-100, lower means more compression
-      compression = 6  // 0-9 for PNG compression level
-    } = req.body;
+    const { prompt } = req.body;
 
     if (!prompt) {
       return res.status(400).json({ message: "Prompt is required" });
@@ -270,83 +264,17 @@ export const generateImage = async (req, res) => {
     }
 
     try {
-      // Fetch the image with retry logic
+      // Attempt to fetch the image with retry logic
       const response = await fetchWithRetry(output);
       const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      // Process the image with Sharp focusing on compression
-      let sharpInstance = sharp(buffer);
-      
-      // Configure compression based on format
-      switch(format.toLowerCase()) {
-        case 'jpeg':
-        case 'jpg':
-          sharpInstance = sharpInstance.jpeg({ quality });
-          break;
-        case 'webp':
-          sharpInstance = sharpInstance.webp({ 
-            quality,
-            effort: 6, // 0-6, higher means better compression but slower
-            lossless: false
-          });
-          break;
-        case 'avif':
-          sharpInstance = sharpInstance.avif({ 
-            quality,
-            effort: 6  // 0-9, higher means better compression but slower
-          });
-          break;
-        case 'png':
-          sharpInstance = sharpInstance.png({ 
-            compressionLevel: compression,
-            effort: 10  // 1-10, higher means better compression but slower
-          });
-          break;
-        default:
-          sharpInstance = sharpInstance.webp({ quality }); // default to webp
-      }
-
-      const processedImageBuffer = await sharpInstance.toBuffer();
-      const stats = await sharp(processedImageBuffer).stats();
-      
-      // Get original size for comparison
-      const originalSize = buffer.length;
-      const compressedSize = processedImageBuffer.length;
-      const compressionRatio = ((originalSize - compressedSize) / originalSize * 100).toFixed(2);
-      
-      // Log detailed compression information
-      console.log('\nImage Compression Details:');
-      console.log('------------------------');
-      console.log(`Format: ${format}`);
-      console.log(`Original Size: ${(originalSize / 1024).toFixed(2)} KB`);
-      console.log(`Compressed Size: ${(compressedSize / 1024).toFixed(2)} KB`);
-      console.log(`Compression Ratio: ${compressionRatio}%`);
-      console.log(`Space Saved: ${((originalSize - compressedSize) / 1024).toFixed(2)} KB`);
-      console.log(`Quality Setting: ${quality}`);
-      if (format.toLowerCase() === 'png') {
-        console.log(`PNG Compression Level: ${compression}`);
-      }
-      console.log('------------------------\n');
-
-      const base64String = processedImageBuffer.toString('base64');
-      const mimeType = `image/${format.toLowerCase()}`;
+      const base64String = Buffer.from(arrayBuffer).toString('base64');
 
       res.status(200).json({
-        message: "Image generated and compressed successfully",
-        imageData: `data:${mimeType};base64,${base64String}`,
-        stats: {
-          format,
-          originalSize: originalSize,
-          compressedSize: compressedSize,
-          compressionRatio: `${compressionRatio}%`,
-          quality,
-          channels: stats.channels,
-          isOpaque: stats.isOpaque
-        }
+        message: "Image generated successfully",
+        imageData: `data:image/png;base64,${base64String}`
       });
     } catch (error) {
-      console.error("Error processing generated image:", error);
+      console.error("Error fetching generated image:", error);
       // If we at least have the output URL, return it
       res.status(500).json({
         message: "Error processing generated image",
@@ -358,98 +286,6 @@ export const generateImage = async (req, res) => {
     console.error("Image generation error:", error);
     res.status(500).json({
       message: "Error generating image",
-      error: error.message
-    });
-  }
-};
-
-// Add test function for compression analysis
-export const testCompression = async (req, res) => {
-  try {
-    const { prompt } = req.body;
-    const testConfigs = [
-      { format: 'webp', quality: 80 },  // Default
-      { format: 'webp', quality: 60 },  // More aggressive WebP
-      { format: 'jpeg', quality: 80 },  // Standard JPEG
-      { format: 'jpeg', quality: 60 },  // More aggressive JPEG
-      { format: 'png', compression: 6 }, // Standard PNG
-      { format: 'png', compression: 9 }, // Maximum PNG compression
-      { format: 'avif', quality: 80 },  // Standard AVIF
-      { format: 'avif', quality: 60 }   // More aggressive AVIF
-    ];
-
-    const results = [];
-
-    // Generate base image once
-    const input = {
-      prompt,
-      aspect_ratio: "1:1"
-    };
-
-    const output = await replicate.run("ideogram-ai/ideogram-v3-balanced", { input });
-    if (!output) {
-      throw new Error("No output received from Replicate");
-    }
-
-    // Fetch original image
-    const response = await fetchWithRetry(output);
-    const arrayBuffer = await response.arrayBuffer();
-    const originalBuffer = Buffer.from(arrayBuffer);
-    const originalSize = originalBuffer.length;
-
-    // Test each configuration
-    for (const config of testConfigs) {
-      let sharpInstance = sharp(originalBuffer);
-      
-      switch(config.format) {
-        case 'jpeg':
-        case 'jpg':
-          sharpInstance = sharpInstance.jpeg({ quality: config.quality });
-          break;
-        case 'webp':
-          sharpInstance = sharpInstance.webp({ 
-            quality: config.quality,
-            effort: 6,
-            lossless: false
-          });
-          break;
-        case 'avif':
-          sharpInstance = sharpInstance.avif({ 
-            quality: config.quality,
-            effort: 6
-          });
-          break;
-        case 'png':
-          sharpInstance = sharpInstance.png({ 
-            compressionLevel: config.compression,
-            effort: 10
-          });
-          break;
-      }
-
-      const processedBuffer = await sharpInstance.toBuffer();
-      const compressedSize = processedBuffer.length;
-      const compressionRatio = ((originalSize - compressedSize) / originalSize * 100).toFixed(2);
-
-      results.push({
-        format: config.format,
-        quality: config.quality,
-        compression: config.compression,
-        originalSize: (originalSize / 1024).toFixed(2) + ' KB',
-        compressedSize: (compressedSize / 1024).toFixed(2) + ' KB',
-        compressionRatio: compressionRatio + '%',
-        spaceSaved: ((originalSize - compressedSize) / 1024).toFixed(2) + ' KB'
-      });
-    }
-
-    res.status(200).json({
-      message: "Compression test completed",
-      results
-    });
-  } catch (error) {
-    console.error("Compression test error:", error);
-    res.status(500).json({
-      message: "Error running compression test",
       error: error.message
     });
   }
