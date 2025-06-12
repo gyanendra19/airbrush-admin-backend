@@ -233,7 +233,12 @@ export const generatePrompt = async (req, res) => {
 
 export const generateImage = async (req, res) => {
   try {
-    const { prompt } = req.body;
+    const { 
+      prompt, 
+      format = 'webp', // webp provides better compression
+      quality = 80,    // 0-100, lower means more compression
+      compression = 6  // 0-9 for PNG compression level
+    } = req.body;
 
     if (!prompt) {
       return res.status(400).json({ message: "Prompt is required" });
@@ -264,17 +269,83 @@ export const generateImage = async (req, res) => {
     }
 
     try {
-      // Attempt to fetch the image with retry logic
+      // Fetch the image with retry logic
       const response = await fetchWithRetry(output);
       const arrayBuffer = await response.arrayBuffer();
-      const base64String = Buffer.from(arrayBuffer).toString('base64');
+      const buffer = Buffer.from(arrayBuffer);
+
+      // Process the image with Sharp focusing on compression
+      let sharpInstance = sharp(buffer);
+      
+      // Configure compression based on format
+      switch(format.toLowerCase()) {
+        case 'jpeg':
+        case 'jpg':
+          sharpInstance = sharpInstance.jpeg({ quality });
+          break;
+        case 'webp':
+          sharpInstance = sharpInstance.webp({ 
+            quality,
+            effort: 6, // 0-6, higher means better compression but slower
+            lossless: false
+          });
+          break;
+        case 'avif':
+          sharpInstance = sharpInstance.avif({ 
+            quality,
+            effort: 6  // 0-9, higher means better compression but slower
+          });
+          break;
+        case 'png':
+          sharpInstance = sharpInstance.png({ 
+            compressionLevel: compression,
+            effort: 10  // 1-10, higher means better compression but slower
+          });
+          break;
+        default:
+          sharpInstance = sharpInstance.webp({ quality }); // default to webp
+      }
+
+      const processedImageBuffer = await sharpInstance.toBuffer();
+      const stats = await sharp(processedImageBuffer).stats();
+      
+      // Get original size for comparison
+      const originalSize = buffer.length;
+      const compressedSize = processedImageBuffer.length;
+      const compressionRatio = ((originalSize - compressedSize) / originalSize * 100).toFixed(2);
+      
+      // Log detailed compression information
+      console.log('\nImage Compression Details:');
+      console.log('------------------------');
+      console.log(`Format: ${format}`);
+      console.log(`Original Size: ${(originalSize / 1024).toFixed(2)} KB`);
+      console.log(`Compressed Size: ${(compressedSize / 1024).toFixed(2)} KB`);
+      console.log(`Compression Ratio: ${compressionRatio}%`);
+      console.log(`Space Saved: ${((originalSize - compressedSize) / 1024).toFixed(2)} KB`);
+      console.log(`Quality Setting: ${quality}`);
+      if (format.toLowerCase() === 'png') {
+        console.log(`PNG Compression Level: ${compression}`);
+      }
+      console.log('------------------------\n');
+
+      const base64String = processedImageBuffer.toString('base64');
+      const mimeType = `image/${format.toLowerCase()}`;
 
       res.status(200).json({
-        message: "Image generated successfully",
-        imageData: `data:image/png;base64,${base64String}`
+        message: "Image generated and compressed successfully",
+        imageData: `data:${mimeType};base64,${base64String}`,
+        stats: {
+          format,
+          originalSize: originalSize,
+          compressedSize: compressedSize,
+          compressionRatio: `${compressionRatio}%`,
+          quality,
+          channels: stats.channels,
+          isOpaque: stats.isOpaque
+        }
       });
     } catch (error) {
-      console.error("Error fetching generated image:", error);
+      console.error("Error processing generated image:", error);
       // If we at least have the output URL, return it
       res.status(500).json({
         message: "Error processing generated image",
