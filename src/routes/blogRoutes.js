@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllBlogPosts, getBlogPostById } from '../controllers/blogController.js';
+import { getAllBlogPosts, getBlogPostByUrl } from '../controllers/blogController.js';
 
 const router = express.Router();
 
@@ -7,6 +7,6 @@ const router = express.Router();
 router.get('/', getAllBlogPosts);
 
 // Get a single blog post by ID
-router.get('/:id', getBlogPostById);
+router.get('/:url', getBlogPostByUrl);
 
 export default router; 

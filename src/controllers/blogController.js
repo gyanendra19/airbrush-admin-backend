@@ -18,13 +18,13 @@ export const getAllBlogPosts = async (req, res) => {
     }
 };
 
-// Get a single blog post by ID
-export const getBlogPostById = async (req, res) => {
+// Get a single blog post by URL
+export const getBlogPostByUrl = async (req, res) => {
     try {
-        const { id } = req.params;
+        const { url } = req.params;
         const collection = mongoose.connection.collection('blog-collection');
         
-        const post = await collection.findOne({ _id: new mongoose.Types.ObjectId(id) });
+        const post = await collection.findOne({ url: url });
         
         if (!post) {
             return res.status(404).json({
