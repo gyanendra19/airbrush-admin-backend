@@ -1,14 +1,23 @@
 import dotenv from "dotenv";
 import Replicate from "replicate";
 import fs from "fs/promises";
+import fsSync from "fs";
 import { createWriteStream } from "fs";
 import path from "path";
 import fetch from "node-fetch";
 import sharp from "sharp";
 import { Readable } from 'stream';
 import { finished } from 'stream/promises';
+import AWS from 'aws-sdk';
 
 dotenv.config();
+
+// Configure AWS
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION
+});
 
 // Add a check for the API key
 if (!process.env.REPLICATE_API_KEY) {
@@ -151,26 +160,55 @@ export const uploadImages = async (req, res) => {
       return res.status(400).json({ message: "No files uploaded" });
     }
 
-    // Extract file information from Cloudinary response
-    const uploadedFiles = req.files.map((file) => ({
-      url: file.path, // The URL of the uploaded file (Cloudinary secure URL)
-      publicId: file.filename, // The public ID of the file in Cloudinary
-      originalName: file.originalname,
-      size: file.size,
-      mimetype: file.mimetype,
-      fileType: file.mimetype.includes("video") ? "video" : "image",
-    }));
+    const uploadPromises = req.files.map(async (file) => {
+      try {
+        const fileContent = await fs.readFile(file.path);
+        const random_id = Math.floor(Math.random() * Date.now());
+        const params = {
+          Bucket: process.env.AWS_BUCKET_NAME,
+          Key: `asset_file/new/asset-${random_id}.${file.originalname.split('.').pop()}`,
+          Body: fileContent,
+          ACL: "public-read"
+        };
+
+        const uploadResult = await s3.upload(params).promise();
+        
+        // Delete the local file after successful upload
+        await fs.unlink(file.path);
+
+        return {
+          url: uploadResult.Location,
+          key: uploadResult.Key,
+          originalName: file.originalname,
+          size: file.size,
+          mimetype: file.mimetype,
+          fileType: file.mimetype.includes("video") ? "video" : "image",
+        };
+      } catch (error) {
+        // If there's an error, try to clean up the local file
+        try {
+          await fs.unlink(file.path);
+        } catch (unlinkError) {
+          console.error('Error deleting local file:', unlinkError);
+        }
+        console.error(`Error uploading file ${file.originalname}:`, error);
+        throw error;
+      }
+    });
+
+    const uploadedFiles = await Promise.all(uploadPromises);
 
     res.status(200).json({
-      message: "Files uploaded successfully",
+      message: "Files uploaded successfully to S3",
       files: uploadedFiles,
       count: uploadedFiles.length,
     });
   } catch (error) {
     console.error("Upload error:", error);
-    res
-      .status(500)
-      .json({ message: "Error uploading files", error: error.message });
+    res.status(500).json({ 
+      message: "Error uploading files to S3", 
+      error: error.message 
+    });
   }
 };
 
